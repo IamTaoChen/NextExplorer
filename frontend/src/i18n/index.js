@@ -36,7 +36,7 @@ export const supportedLocales = supportedLocaleOptions.map(({ code }) => code);
 
 function detectLocale(supportedLocales) {
   try {
-    const saved = localStorage.getItem('locale');
+    const saved = localStorage.getItem('locale') || 'zh-CN';
     if (saved && supportedLocales.includes(saved)) return saved;
   } catch (_) {
     // Ignore localStorage errors (e.g., in private browsing mode)
