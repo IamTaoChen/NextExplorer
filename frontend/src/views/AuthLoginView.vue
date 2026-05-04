@@ -281,7 +281,6 @@ onUnmounted(() => {
         <p v-if="qrExpiresIn != null" class="mt-1 text-xs text-white/50">
           二维码有效期：{{ qrExpiresIn }} 秒
         </p>
-        <p v-if="qrCode" class="mt-1 text-xs text-white/50">验证码：{{ qrCode }}</p>
       </div>
 
       <div
