@@ -16,6 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   const strategies = ref({
     local: true,
     oidc: false,
+    qr: false,
   });
   const currentUser = ref(null);
   const isLoading = ref(false);
@@ -51,7 +52,7 @@ export const useAuthStore = defineStore('auth', () => {
         requiresSetup.value = enabled ? Boolean(status.requiresSetup) : false;
         authEnabled.value = enabled;
         authMode.value = typeof status?.authMode === 'string' ? status.authMode : 'local';
-        strategies.value = status?.strategies || { local: true, oidc: false };
+        strategies.value = status?.strategies || { local: true, oidc: false, qr: false };
         currentUser.value = status?.user || null;
 
         // Clear guest session if user is now authenticated

@@ -57,6 +57,11 @@ module.exports = {
   // When false, OIDC login is only allowed for users that already exist in the DB (local or OIDC-linked).
   OIDC_AUTO_CREATE_USERS: normalizeBoolean(process.env.OIDC_AUTO_CREATE_USERS) ?? true,
 
+  // QR
+  QR_AUTH_ENABLED: normalizeBoolean(process.env.QR_AUTH_ENABLED),
+  QR_AUTH_URL: process.env.QR_AUTH_URL || null,
+  QR_AUTH_KEY: process.env.QR_AUTH_KEY || null,
+
   // Search
   SEARCH_DEEP: normalizeBoolean(process.env.SEARCH_DEEP),
   SEARCH_RIPGREP: normalizeBoolean(process.env.SEARCH_RIPGREP),

@@ -51,20 +51,28 @@ const requestRaw = async (endpoint, options = {}) => {
 
       const errorInfo = {
         statusCode: response.status,
-        ...(typeof error === 'object' ? error : { message: error || `Request failed with status ${response.status}` }),
+        ...(typeof error === 'object'
+          ? error
+          : { message: error || `Request failed with status ${response.status}` }),
       };
 
       const translatedMessage = errorHandler?.(errorInfo) || errorInfo.message;
-      throw new Error(translatedMessage);
+      const requestError = new Error(translatedMessage);
+      requestError.statusCode = errorInfo.statusCode;
+      requestError.code = errorInfo.code;
+      requestError.requestId = errorInfo.requestId;
+      throw requestError;
     }
 
     return response;
   } catch (error) {
     if (error instanceof TypeError) {
-      const translatedMessage = errorHandler?.({
-        message: 'Network Error',
-        details: 'Failed to connect to server. This is often caused by a PUBLIC_URL/CORS mismatch or a reverse proxy configuration issue.',
-      }) || 'Network Error';
+      const translatedMessage =
+        errorHandler?.({
+          message: 'Network Error',
+          details:
+            'Failed to connect to server. This is often caused by a PUBLIC_URL/CORS mismatch or a reverse proxy configuration issue.',
+        }) || 'Network Error';
       throw new Error(translatedMessage);
     }
     throw error;

@@ -1,5 +1,6 @@
 const express = require('express');
 const { auth } = require('../config/index');
+const { startQrAuth, verifyQrAuth } = require('../middleware/qr');
 
 const {
   countUsers,
@@ -9,6 +10,8 @@ const {
   addLocalPassword,
   getUserAuthMethods,
   getRequestUser,
+  getOrCreateOidcUser,
+  deriveRolesFromClaims,
 } = require('../services/users');
 const rateLimit = require('express-rate-limit');
 const asyncHandler = require('../utils/asyncHandler');
@@ -19,6 +22,76 @@ const {
   NotFoundError,
 } = require('../errors/AppError');
 const { ErrorCodes } = require('../errors/errorCodes');
+
+const decodeJwtPayload = (token) => {
+  if (typeof token !== 'string' || !token) return null;
+  const parts = token.split('.');
+  if (parts.length < 2) return null;
+
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padding = base64.length % 4;
+    const padded = padding ? `${base64}${'='.repeat(4 - padding)}` : base64;
+    const json = Buffer.from(padded, 'base64').toString('utf8');
+    const parsed = JSON.parse(json);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+};
+
+const finalizeQrSessionIfAuthenticated = async (req, res, result) => {
+  if (!result || result.status !== 'authenticated') return;
+
+  const tokenClaims = decodeJwtPayload(result?.tokens?.id_token);
+  const providerUser =
+    result.user && typeof result.user === 'object' && !Array.isArray(result.user)
+      ? result.user
+      : {};
+
+  const issuer =
+    (typeof result?.issuer === 'string' && result.issuer.trim()) ||
+    tokenClaims?.iss ||
+    auth?.oidc?.issuer ||
+    auth?.qr?.qrAuthUrl ||
+    'qr-auth';
+  const sub = providerUser.sub || tokenClaims?.sub || null;
+  const email = providerUser.email || tokenClaims?.email || null;
+
+  if (!sub || !email) {
+    throw new ValidationError('QR authenticated payload must include user sub and email.');
+  }
+
+  const claims = {
+    ...tokenClaims,
+    ...providerUser,
+    sub,
+    email,
+    email_verified:
+      providerUser.email_verified != null
+        ? providerUser.email_verified
+        : tokenClaims?.email_verified,
+  };
+
+  const appUser = await getOrCreateOidcUser({
+    issuer,
+    sub,
+    email,
+    emailVerified: Boolean(claims.email_verified),
+    username: claims.preferred_username || claims.username || email,
+    displayName: claims.name || claims.preferred_username || claims.username || email,
+    roles: deriveRolesFromClaims(claims, auth?.oidc?.adminGroups),
+    requireEmailVerified: auth?.oidc?.requireEmailVerified || false,
+    autoCreateUsers: auth?.oidc?.autoCreateUsers ?? true,
+  });
+
+  if (req.session) {
+    req.session.localUserId = appUser.id;
+  }
+
+  // Clear guest session cookie when QR login succeeds.
+  res.clearCookie('guestSession', { path: '/api' });
+};
 
 const rateLimitHandler = (req, res, next, options) => {
   const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
@@ -73,6 +146,7 @@ router.get('/status', async (req, res) => {
   const strategies = {
     local: authMode === 'local' || authMode === 'both',
     oidc: (authMode === 'oidc' || authMode === 'both') && Boolean(oidcEnv.enabled),
+    qr: Boolean(auth.qr?.enabled),
   };
 
   res.json({
@@ -86,6 +160,9 @@ router.get('/status', async (req, res) => {
       enabled: Boolean(oidcEnv.enabled),
       issuer: oidcEnv.issuer || null,
       scopes: oidcEnv.scopes || [],
+    },
+    qr: {
+      enabled: Boolean(auth.qr?.enabled),
     },
   });
 });
@@ -239,6 +316,23 @@ router.post('/logout', (req, res) => {
 router.get('/me', async (req, res) => {
   await respondWithUser(req, res);
 });
+
+router.post(
+  '/qr/start',
+  asyncHandler(async (_req, res) => {
+    const result = await startQrAuth();
+    res.json(result);
+  })
+);
+
+router.post(
+  '/qr/verify',
+  asyncHandler(async (req, res) => {
+    const result = await verifyQrAuth(req.body?.code);
+    await finalizeQrSessionIfAuthenticated(req, res, result);
+    res.json(result);
+  })
+);
 
 router.post('/token', (req, res) => res.status(400).json({ error: 'Token minting is disabled.' }));
 

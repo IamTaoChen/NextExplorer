@@ -121,30 +121,6 @@ const props = defineProps({
         </main>
 
         <footer class="flex items-center justify-between px-6 py-4 sm:px-12 text-xs text-white/80">
-          <div class="flex items-center gap-2">
-            <div>© {{ new Date().getFullYear() }} {{ appSettings.state.branding.appName }}</div>
-            <span class="text-white">v{{ props.version }}</span>
-          </div>
-
-          <div class="flex items-center gap-4 text-white/70">
-            <a
-              href="https://explorer.nxz.ai"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-xs font-medium text-white/80 underline-offset-4 hover:text-white hover:underline"
-            >
-              Help &amp; docs
-            </a>
-            <a
-              v-if="appSettings.state.branding.showPoweredBy"
-              href="https://explorer.nxz.ai"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-xs font-medium text-white/80 underline-offset-4 hover:text-white hover:underline"
-            >
-              Powered by nextExplorer
-            </a>
-          </div>
         </footer>
       </div>
     </div>

@@ -8,15 +8,17 @@ import request from 'supertest';
 import { setupTestEnv, clearModuleCache } from '../helpers/env-test-utils.js';
 
 let envContext;
+const originalFetch = global.fetch;
 
 beforeAll(async () => {
   envContext = await setupTestEnv({
     tag: 'auth-routes-test-',
-    modules: ['src/services/db', 'src/services/users', 'src/routes/auth'],
+    modules: ['src/services/db', 'src/services/users', 'src/routes/auth', 'src/middleware/qr'],
   });
 });
 
 afterAll(async () => {
+  global.fetch = originalFetch;
   await envContext.cleanup();
 });
 
@@ -44,6 +46,7 @@ const buildApp = ({ authEnabled } = {}) => {
   clearModuleCache('src/config/index');
   clearModuleCache('src/services/db');
   clearModuleCache('src/services/users');
+  clearModuleCache('src/middleware/qr');
 
   const authRoutes = envContext.requireFresh('src/routes/auth');
   const { notFoundHandler, errorHandler } = envContext.requireFresh('src/middleware/errorHandler');
@@ -81,13 +84,11 @@ describe('Auth Routes', () => {
       expect(s1.body.authEnabled).toBe(true);
 
       // setup admin
-      const setup = await request(app)
-        .post('/api/auth/setup')
-        .send({
-          email: 'admin@example.com',
-          username: 'admin',
-          password: 'secret123',
-        });
+      const setup = await request(app).post('/api/auth/setup').send({
+        email: 'admin@example.com',
+        username: 'admin',
+        password: 'secret123',
+      });
       expect(setup.status).toBe(201);
       expect(setup.body.user).toBeDefined();
       expect(setup.body.user.roles).toContain('admin');
@@ -119,13 +120,11 @@ describe('Auth Routes', () => {
       const app = buildApp({ authEnabled: true });
 
       // setup admin
-      const setup = await request(app)
-        .post('/api/auth/setup')
-        .send({
-          email: 'admin@example.com',
-          username: 'admin',
-          password: 'secret123',
-        });
+      const setup = await request(app).post('/api/auth/setup').send({
+        email: 'admin@example.com',
+        username: 'admin',
+        password: 'secret123',
+      });
       expect(setup.status).toBe(201);
 
       // login
@@ -155,6 +154,98 @@ describe('Auth Routes', () => {
       expect(status.status).toBe(200);
       expect(status.body.authEnabled).toBe(false);
       expect(status.body.authMode).toBe('both');
+      expect(status.body.qr.enabled).toBe(false);
+      expect(status.body.strategies.qr).toBe(false);
+    });
+  });
+
+  describe('QR Auth Proxy', () => {
+    it('should establish app session after qr verify authenticated', async () => {
+      process.env.AUTH_ENABLED = 'true';
+      process.env.QR_AUTH_ENABLED = 'true';
+      process.env.QR_AUTH_URL = 'https://qr.example.com';
+      process.env.QR_AUTH_KEY = 'replace-me';
+
+      const fetchCalls = [];
+      global.fetch = async (url, options = {}) => {
+        fetchCalls.push({ url, options });
+
+        if (url === 'https://qr.example.com/start') {
+          return {
+            ok: true,
+            json: async () => ({
+              code: '3UN2',
+              redirect_link: 'https://issuer.example.com/oauth2/authorize?state=abc',
+              expires_in: 120,
+            }),
+          };
+        }
+
+        if (url === 'https://qr.example.com/verify') {
+          return {
+            ok: true,
+            json: async () => ({
+              code: '3UN2',
+              status: 'authenticated',
+              expires_in: 72,
+              user: {
+                sub: '123',
+                email: 'user@example.com',
+              },
+              tokens: {
+                access_token: 'access-token',
+                id_token: 'id-token',
+                token_type: 'Bearer',
+                expires_in: 3600,
+              },
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected fetch url: ${url}`);
+      };
+
+      const app = buildApp({ authEnabled: true });
+      const agent = request.agent(app);
+
+      const startResponse = await agent.post('/api/auth/qr/start');
+      expect(startResponse.status).toBe(200);
+      expect(startResponse.body.code).toBe('3UN2');
+      expect(startResponse.body.redirect_link).toContain('issuer.example.com');
+
+      const verifyResponse = await agent.post('/api/auth/qr/verify').send({ code: '3UN2' });
+
+      expect(verifyResponse.status).toBe(200);
+      expect(verifyResponse.body.status).toBe('authenticated');
+      expect(verifyResponse.body.user.email).toBe('user@example.com');
+      expect(verifyResponse.body.tokens.access_token).toBe('access-token');
+
+      const meResponse = await agent.get('/api/auth/me');
+      expect(meResponse.status).toBe(200);
+      expect(meResponse.body.user).toBeTruthy();
+      expect(meResponse.body.user.email).toBe('user@example.com');
+
+      expect(fetchCalls).toHaveLength(2);
+      expect(fetchCalls[0].url).toBe('https://qr.example.com/start');
+      expect(fetchCalls[0].options.headers['X-API-Key']).toBe('replace-me');
+      expect(fetchCalls[1].url).toBe('https://qr.example.com/verify');
+      expect(fetchCalls[1].options.body).toBe(JSON.stringify({ code: '3UN2' }));
+    });
+
+    it('should reject qr verify without a code', async () => {
+      process.env.AUTH_ENABLED = 'true';
+      process.env.QR_AUTH_ENABLED = 'true';
+      process.env.QR_AUTH_URL = 'https://qr.example.com';
+
+      global.fetch = async () => {
+        throw new Error('fetch should not be called');
+      };
+
+      const app = buildApp({ authEnabled: true });
+      const response = await request(app).post('/api/auth/qr/verify').send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body?.error?.message).toMatch(/code is required/i);
     });
   });
 });

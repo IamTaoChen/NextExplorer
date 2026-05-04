@@ -146,6 +146,11 @@ const auth = {
     requireEmailVerified: env.OIDC_REQUIRE_EMAIL_VERIFIED,
     autoCreateUsers: env.OIDC_AUTO_CREATE_USERS,
   },
+  qr:{
+    qrAuthUrl: env.QR_AUTH_URL || null,
+    qrAuthKey: env.QR_AUTH_KEY || null,
+    enabled: env.QR_AUTH_ENABLED && env.QR_AUTH_URL,
+  }
 };
 
 // --- Search ---

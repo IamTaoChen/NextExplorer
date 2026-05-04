@@ -23,6 +23,17 @@ const logout = () =>
     method: 'POST',
   });
 
+const startQrAuth = () =>
+  requestJson('/api/auth/qr/start', {
+    method: 'POST',
+  });
+
+const verifyQrAuth = (code) =>
+  requestJson('/api/auth/qr/verify', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+
 async function changePassword({ currentPassword, newPassword }) {
   return requestJson('/api/auth/password', {
     method: 'POST',
@@ -30,4 +41,13 @@ async function changePassword({ currentPassword, newPassword }) {
   });
 }
 
-export { fetchAuthStatus, setupAccount, fetchCurrentUser, login, logout, changePassword };
+export {
+  fetchAuthStatus,
+  setupAccount,
+  fetchCurrentUser,
+  login,
+  logout,
+  startQrAuth,
+  verifyQrAuth,
+  changePassword,
+};

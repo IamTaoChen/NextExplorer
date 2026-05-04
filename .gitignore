@@ -158,3 +158,6 @@ cypress/screenshots/
 
 docker-compose.yml
 docker-compose.dev.yml
+
+
+docker/data
