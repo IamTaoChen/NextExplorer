@@ -25,7 +25,7 @@ const configureSession = (app) => {
         httpOnly: true,
         sameSite: 'lax',
         secure: 'auto',
-        maxAge: (envAuthConfig && envAuthConfig.sessionMaxAgeMs) || 30 * 24 * 60 * 60 * 1000, // Default: 30 days
+        // maxAge: (envAuthConfig && envAuthConfig.sessionMaxAgeMs) || 30 * 24 * 60 * 60 * 1000, // Default: 30 days
       },
     })
   );
