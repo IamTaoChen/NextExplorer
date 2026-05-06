@@ -441,6 +441,7 @@
       "confirmDisable": "禁用身份验证将使您的文件公开可访问。继续？"
     },
     "access": {
+      "title": "访问控制",
       "subtitle": "为每个文件夹设置权限：读写、只读或隐藏。",
       "recursive": "递归",
       "readWrite": "读写",
@@ -493,6 +494,8 @@
     }
   },
   "share": {
+    "label": "标签",
+    "sharedWith": "共享给",
     "sharedWithMe": "与我共享",
     "sharedWithMeDescription": "其他人与你的账户共享的文件和文件夹。",
     "sharedByMe": "我共享的内容",
