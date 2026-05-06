@@ -192,7 +192,11 @@ onClickOutside(settingsMenuRef, () => {
 });
 
 // Theme
-const themeId = useLocalStorage('editor:theme', 'vsCodeDark');
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)')
+const themeId = useLocalStorage('editor:theme', null)
+if (!themeId.value) {
+  themeId.value = prefersDark.matches ? 'vsCodeDark' : 'vsCodeLight'
+}
 const themeOptions = Object.keys(themeBundle)
   .filter((k) => !k.includes('Merge'))
   .map((k) => ({
