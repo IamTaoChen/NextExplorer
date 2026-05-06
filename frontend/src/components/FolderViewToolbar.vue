@@ -35,7 +35,6 @@ const isVolumesView = computed(() => {
 
 // Check if user can upload/create (based on backend permissions)
 const canCreate = computed(() => {
-  return false;
   // Always hide on volumes view
   if (isVolumesView.value) return false;
 
