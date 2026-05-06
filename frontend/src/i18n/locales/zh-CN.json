@@ -72,7 +72,13 @@
     "readwrite": "读/写"
   },
   "editor": {
-    "confirmCloseWithoutSaving": "您有未保存的更改。要在不保存的情况下关闭吗？"
+    "confirmCloseWithoutSaving": "您有未保存的更改。要在不保存的情况下关闭吗？",
+    "editing": "正在编辑",
+    "save": "保存",
+    "saving": "正在保存...",
+    "saveError": "保存失败：{error}",
+    "unsavedChanges": "未保存的更改",
+    "warpLines": "自动换行"
   },
   "status": {
     "updated": "更新成功",
